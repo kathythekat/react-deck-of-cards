@@ -1,5 +1,8 @@
-function Card({img, alt}) {
-  return < img src={img} alt={alt}/>
+function Card({ img, alt, randomRot }) {
+  
+  return <img className="Card" src={img} alt={alt} style={{
+    transform:  randomRot 
+  }}/>
 }
 
 export default Card;

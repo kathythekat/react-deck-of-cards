@@ -1,30 +1,37 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useRef} from 'react';
 import Card from './Card';
 import axios from 'axios';
-import { cleanup } from '@testing-library/react';
 
 
 let URL = 'https://deckofcardsapi.com/api/deck/new/draw/?count=1'
+//useRef for URL: if url = initial url, then switch to new url with deck id
 
 function Deck() {
+  const urlRef = useRef(URL);
   const [cards, setCards] = useState([]);
-  const [isDrawing, setIsDrawing] = useState(0)
+  const [drawNum, setDrawNum] = useState(0)
   useEffect(() => {
-    if (!isDrawing) {
-      return;
-    }
     async function fetchCard() {
-      const cardData = await axios.get(URL);
+      const cardData = await axios.get(urlRef.current);
       setCards(cards => [...cards, cardData.data])
-      URL = `https://deckofcardsapi.com/api/deck/${cardData.data.deck_id}/draw/?count=1`;
+      if (urlRef.current.includes('new')) {
+        urlRef.current = `https://deckofcardsapi.com/api/deck/${cardData.data.deck_id}/draw/?count=1`;
+      }
     }
-    fetchCard();
-  }, [isDrawing]);
+    if (drawNum) fetchCard();
+  }, [drawNum]);
 
   return (
     <div>
-    {cards.map(card => <Card img ={card.cards[0].image} />)}
-    <button onClick={() => setIsDrawing(isDrawing + 1)}>Get Card</button>
+    <button onClick={() => setDrawNum(drawNum + 1)}>Get Card</button>
+    {cards.length >= 52 ?
+      alert("no more cards left.")
+      : cards.map(card => 
+        <Card 
+          img ={card.cards[0].image}
+          alt={card.cards[0].code}
+          key={card.cards[0].code}
+        />)}
     </div>
   )
 }

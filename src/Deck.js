@@ -2,40 +2,60 @@ import React, {useEffect, useState, useRef} from 'react';
 import Card from './Card';
 import axios from 'axios';
 
-
-let URL = 'https://deckofcardsapi.com/api/deck/new/draw/?count=1'
-//useRef for URL: if url = initial url, then switch to new url with deck id
-
-
 function Deck() {
-  const urlRef = useRef(URL);
+  const deckId = useRef();
   const [cards, setCards] = useState([]);
-  const [drawNum, setDrawNum] = useState(0);
+  const [isFetching, setIsFetching] = useState(false);
+  const [numCards, setNumCards] = useState(0);
   const [isShuffling, setIsShuffling] = useState(false);
-  
-  console.log(cards)
+  const timerId = useRef();
 
-  useEffect(() => {
-    async function fetchCard() {
-      const cardData = await axios.get(urlRef.current);
+  async function fetchCard() {
+    
+    if (cards.length >= 52) {
+      setIsFetching(false);
+      console.log("no more cards left");
+      clearInterval(timerId.current);
+    }
+    else {
+      const cardData = await axios.get(
+        `https://deckofcardsapi.com/api/deck/${deckId.current}/draw/?count=1`
+      );
+
       let randomRot = Math.floor(Math.random() * 30);
       if (Math.random() > 0.5) randomRot *= -1;
       randomRot = "rotate(" + randomRot + "deg)";
-      
-      
-      setCards(cards => [...cards, { ...cardData.data, randomRot }])
-      if (urlRef.current.includes('new')) {
-        urlRef.current = `https://deckofcardsapi.com/api/deck/${cardData.data.deck_id}/draw/?count=1`;
-      }
+
+      setCards(cards => [...cards, { ...cardData.data, randomRot }]);
     }
-    if (drawNum) fetchCard();
-  }, [drawNum]);
+  }
+
+  // Used to grab deckId on initial load
+  useEffect(() => {
+    async function getNewDeck() {
+      const resp = await axios.get("https://deckofcardsapi.com/api/deck/new/");
+      deckId.current = resp.data.deck_id;
+    }
+    getNewDeck();
+  }, [])
+
+  useEffect(() => {
+    if (isFetching) {
+      // Need to setNumCards in order for cards to be updated after each fetchCard invocation
+      timerId.current = setInterval(() => setNumCards(n => n + 1), 200);
+    }
+
+    return () => clearInterval(timerId.current);
+  }, [isFetching]);
+
+  useEffect(() => {
+    if (numCards > 0) fetchCard();
+  }, [numCards])
 
   useEffect(() => {
     async function shuffleDeck() {
       await axios.get(`https://deckofcardsapi.com/api/deck/${cards[0].deck_id}/shuffle/`);
       setCards([]);
-      setDrawNum(0);
     }
 
     if(isShuffling) shuffleDeck();
@@ -47,21 +67,19 @@ function Deck() {
       <div>
         <button
           onClick={() => {
-            setDrawNum(drawNum + 1);
+            setIsFetching(!isFetching);
             setIsShuffling(false);
           }}>
           Get Card
         </button>
 
-      {(!isShuffling && drawNum > 0) && (
+      {(!isShuffling) && (
         <button onClick={() => setIsShuffling(true)}>Shuffle Deck</button>
         )}
       </div>
 
       <div className="Cards">
-        {cards.length >= 52
-          ? alert("no more cards left.")
-          : cards.map(card => (
+        {cards.length > 0 && cards.map(card => (
               <Card
                 img={card.cards[0].image}
                 alt={card.cards[0].code}
